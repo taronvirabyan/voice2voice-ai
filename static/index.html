@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice2Voice AI Test (Production)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .status-panel {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Smart Start: AI thinking animation */
+        .ai-thinking {
+            animation: pulse 1.5s ease-in-out infinite;
+            background: linear-gradient(45deg, #667eea, #48bb78) !important;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        
+        .audio-visualizer {
+            width: 100%;
+            height: 100px;
+            background: #1a1a1a;
+            border-radius: 5px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .audio-bar {
+            width: 4px;
+            background: #48bb78;
+            position: absolute;
+            bottom: 0;
+            transition: height 0.1s;
+        }
+        
+        .log-container {
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 5px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .log-info { color: #63b3ed; }
+        .log-success { color: #48bb78; }
+        .log-error { color: #f56565; }
+        .log-warning { color: #ed8936; }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .status-connected { background: #48bb78; }
+        .status-disconnected { background: #f56565; }
+        .status-recording { background: #ed8936; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .info-panel {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .service-status {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .service-item {
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 5px;
+            flex: 1;
+            text-align: center;
+        }
+        
+        /* Визуальная индикация режима отладки */
+        body.debug-mode {
+            border: 3px solid #ff6b6b;
+        }
+        
+        body.debug-mode .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #c44569 100%);
+        }
+        
+        body.debug-mode .log-container {
+            border-color: #ff6b6b;
+        }
+        
+        #logLevelBtn {
+            background: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        
+        body.debug-mode #logLevelBtn {
+            background: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+    <script src="/static/js/websocket-config.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>🎤 Voice2Voice AI Production Test</h1>
+        <p>Whisper STT + ElevenLabs TTS + Gemini 2.0 Flash</p>
+    </div>
+
+    <div class="status-panel">
+        <h3>📊 Статус системы</h3>
+        <div id="connection-status">
+            <span class="status-indicator status-disconnected"></span>
+            <span>Не подключено</span>
+        </div>
+        <div class="service-status">
+            <div class="service-item">
+                <strong>STT:</strong>
+                <div id="stt-status">-</div>
+            </div>
+            <div class="service-item">
+                <strong>AI:</strong>
+                <div id="ai-status">-</div>
+            </div>
+            <div class="service-item">
+                <strong>TTS:</strong>
+                <div id="tts-status">-</div>
+            </div>
+            <div class="service-item">
+                <strong>Moderator:</strong>
+                <div id="moderator-status">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="connectBtn" class="btn-primary" onclick="connectWebSocket()">
+            🔌 Подключиться
+        </button>
+        <button id="disconnectBtn" class="btn-danger" onclick="disconnectWebSocket()" disabled>
+            ❌ Отключиться
+        </button>
+        <button id="startRecordingBtn" class="btn-success" onclick="startRecording()" disabled>
+            🎤 Начать разговор
+        </button>
+        <button id="stopRecordingBtn" class="btn-warning" onclick="stopRecording()" disabled>
+            ⏹️ Остановить
+        </button>
+        <button class="btn-primary" onclick="sendTestMessage()" id="testBtn" disabled>
+            📤 Тест сообщение
+        </button>
+        <button onclick="clearLog()">🗑️ Очистить лог</button>
+        <button onclick="toggleLogLevel()" id="logLevelBtn">🔍 Режим: Пользователь</button>
+    </div>
+
+    <div class="audio-visualizer" id="visualizer">
+        <!-- Аудио визуализация -->
+    </div>
+
+    <div class="info-panel">
+        <h3>📝 Тестовые фразы для модератора:</h3>
+        <ul>
+            <li><strong>"У меня есть собака"</strong> → Промпт меняется на "продать ошейник"</li>
+            <li><strong>"У меня нет денег"</strong> → Промпт меняется на "навязать участие в MLM"</li>
+            <li>Начальный промпт: "узнать собеседника получше"</li>
+        </ul>
+    </div>
+
+    <div class="log-container" id="log"></div>
+
+    <script>
+        let ws = null;
+        let mediaRecorder = null;
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let isRecording = false;
+        let audioChunks = [];
+        let keepAliveInterval = null;
+        
+        // Счетчики для отслеживания аудио потоков
+        let totalChunksReceived = 0;        // Для получения аудио от сервера
+        let totalChunksSent = 0;            // Для отправки аудио на сервер
+        let totalBlocksCreated = 0;
+        
+        // Флаги состояния
+        let isFirstResponse = true;         // Флаг для первого ответа
+        let sessionStartTime = null;        // Время начала сессии
+        let isResponseComplete = false;     // Флаг завершения текущего ответа
+        
+        // Автореконнект и мониторинг соединения
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        let reconnectDelay = 3000;          // 3 секунды начальная задержка
+        let lastHeartbeat = Date.now();
+        let heartbeatCheckInterval = null;
+        
+        // Уровни логирования
+        const LOG_LEVELS = {
+            USER: 1,    // Только важные сообщения для пользователя
+            DEBUG: 2    // Технические детали
+        };
+        let currentLogLevel = LOG_LEVELS.USER;  // По умолчанию только пользовательские
+        let shouldReconnect = true;         // Флаг для управления автореконнектом
+
+        // Счетчики логов
+        let logStats = { userLogs: 0, debugLogs: 0, skippedLogs: 0 };
+        
+        function log(message, type = 'info', level = LOG_LEVELS.USER) {
+            // Отладочная информация
+            if (level === LOG_LEVELS.DEBUG) {
+                logStats.debugLogs++;
+            } else {
+                logStats.userLogs++;
+            }
+            
+            // Пропускаем технические логи если включен только пользовательский режим
+            if (level > currentLogLevel) {
+                logStats.skippedLogs++;
+                return;
+            }
+            
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString('ru-RU');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function logDebug(message, type = 'info') {
+            log(message, type, LOG_LEVELS.DEBUG);
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connection-status');
+            const indicator = statusEl.querySelector('.status-indicator');
+            const text = statusEl.querySelector('span:last-child');
+            
+            if (connected) {
+                indicator.className = 'status-indicator status-connected';
+                text.textContent = 'Подключено';
+            } else {
+                indicator.className = 'status-indicator status-disconnected';
+                text.textContent = 'Не подключено';
+            }
+            
+            // Обновляем кнопки
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('startRecordingBtn').disabled = !connected || isRecording;
+            document.getElementById('stopRecordingBtn').disabled = !isRecording;
+            document.getElementById('testBtn').disabled = !connected;
+        }
+
+        async function connectWebSocket() {
+            try {
+                log('🔌 Подключение к WebSocket...', 'info');
+                shouldReconnect = true; // Включаем автореконнект
+                
+                // Используем функцию из websocket-config.js
+                const wsUrl = getWebSocketUrl();
+                log(`🔗 WebSocket URL: ${wsUrl}`, 'info');
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    log('✅ WebSocket подключен успешно!', 'success');
+                    updateConnectionStatus(true);
+                    reconnectAttempts = 0; // Сброс счетчика при успешном подключении
+                    lastHeartbeat = Date.now();
+                    
+                    // Запускаем мониторинг heartbeat
+                    heartbeatCheckInterval = setInterval(() => {
+                        const timeSinceLastHeartbeat = Date.now() - lastHeartbeat;
+                        if (timeSinceLastHeartbeat > 90000) { // 90 секунд без heartbeat
+                            logDebug('⚠️ Нет heartbeat от сервера, проверяем соединение...', 'warning');
+                            // Проверяем состояние WebSocket
+                            if (ws.readyState !== WebSocket.OPEN) {
+                                ws.close(); // Форсируем закрытие для запуска автореконнекта
+                            }
+                        }
+                    }, 30000); // Проверка каждые 30 секунд
+                    
+                    
+                    // Отправляем приветственное сообщение
+                    ws.send(JSON.stringify({
+                        type: 'voice_mode_started',
+                        timestamp: new Date().toISOString()
+                    }));
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleServerMessage(data);
+                    } catch (e) {
+                        logDebug(`📨 Получено сообщение: ${event.data}`, 'info');
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    log(`❌ Ошибка WebSocket: ${error}`, 'error');
+                };
+
+                ws.onclose = function(event) {
+                    logDebug(`🔌 WebSocket отключен. Код: ${event.code}`, 'warning');
+                    updateConnectionStatus(false);
+                    
+                    // Останавливаем запись если она активна
+                    if (isRecording) {
+                        stopRecording();
+                    }
+                    
+                    // Очищаем интервалы
+                    if (keepAliveInterval) {
+                        clearInterval(keepAliveInterval);
+                        keepAliveInterval = null;
+                    }
+                    if (heartbeatCheckInterval) {
+                        clearInterval(heartbeatCheckInterval);
+                        heartbeatCheckInterval = null;
+                    }
+                    
+                    // Очищаем ссылку на WebSocket
+                    ws = null;
+                    
+                    // Автореконнект если не было намеренного отключения
+                    if (shouldReconnect && event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        const delay = reconnectDelay * Math.min(reconnectAttempts, 3); // Экспоненциальная задержка
+                        logDebug(`🔄 Попытка переподключения #${reconnectAttempts} через ${delay/1000} сек...`, 'warning');
+                        
+                        setTimeout(() => {
+                            if (shouldReconnect) {
+                                connectWebSocket();
+                            }
+                        }, delay);
+                    }
+                };
+
+            } catch (error) {
+                log(`❌ Ошибка при подключении: ${error.message}`, 'error');
+            }
+        }
+
+        function handleServerMessage(data) {
+            switch(data.type) {
+                case 'session_started':
+                    logDebug(`🎯 Сессия начата: ${data.session_id}`, 'success');
+                    break;
+                    
+                case 'info':
+                    logDebug(`ℹ️ ${data.message}`, 'info');
+                    if (data.services) {
+                        updateServiceStatus(data.services);
+                    }
+                    break;
+                    
+                case 'transcription':
+                    log(`🎤 Распознано: "${data.text}"`, 'info');
+                    break;
+                    
+                case 'ai_response':
+                    log(`🤖 AI: "${data.text}"`, 'success');
+                    log(`🔊 Воспроизведение ответа...`, 'info');
+                    // Smart Start: убираем индикатор размышления
+                    const recordBtnResponse = document.getElementById('recordBtn');
+                    if (recordBtnResponse) {
+                        recordBtnResponse.classList.remove('ai-thinking');
+                    }
+                    // Сбрасываем флаги для нового ответа
+                    isResponseComplete = false;
+                    isFirstResponse = true;
+                    sessionStartTime = Date.now();
+                    break;
+                    
+                case 'audio_chunk':
+                    logDebug(`🔊 Получен аудио чанк: ${data.size} байт (${data.format || 'mp3'})${data.is_last ? ' [ПОСЛЕДНИЙ]' : ''}`, 'info');
+                    logDebug(`🔍 DEBUG: format='${data.format}', is_last=${data.is_last}, size=${data.size}`, 'info');
+                    playAudioChunk(data.audio, data.format || 'mp3');
+                    
+                    // Если это последний чанк, финализируем оставшиеся данные
+                    if (data.is_last) {
+                        logDebug('📍 Получен последний чанк ответа', 'info');
+                        isResponseComplete = true;
+                        setTimeout(() => {
+                            finalizeRemainingChunks();
+                        }, 100); // Небольшая задержка для гарантии обработки
+                    }
+                    break;
+                    
+                case 'prompt_update':
+                    log(`⚡ ПРОМПТ ИЗМЕНЕН! Новый: "${data.data.new_prompt}"`, 'warning');
+                    log(`   Триггер: ${data.data.trigger}`, 'warning');
+                    log(`   Уверенность: ${data.data.confidence}`, 'warning');
+                    break;
+                    
+                case 'error':
+                    log(`❌ Ошибка: ${data.message}`, 'error');
+                    break;
+                    
+                case 'heartbeat':
+                    // Получен heartbeat от сервера - соединение активно
+                    lastHeartbeat = Date.now();
+                    // Не логируем heartbeat чтобы не засорять лог
+                    break;
+                    
+                case 'pong':
+                    // Старый pong - игнорируем
+                    break;
+                    
+                case 'log_level_changed':
+                    // Ответ от сервера о смене уровня логирования
+                    if (data.success) {
+                        log(`✅ ${data.message}`, 'success');
+                        logDebug(`🔧 Сервер переключён на уровень ${data.level}`, 'info');
+                    } else {
+                        log(`❌ ${data.message}`, 'error');
+                    }
+                    break;
+                    
+                case 'ai_thinking':
+                    // Smart Start: AI начал обработку
+                    log(`🤔 ${data.message || 'AI обрабатывает ваш запрос...'}`, 'info');
+                    // Можно добавить визуальный индикатор
+                    const recordBtn = document.getElementById('recordBtn');
+                    if (recordBtn) {
+                        recordBtn.classList.add('ai-thinking');
+                    }
+                    break;
+                    
+                default:
+                    logDebug(`📨 ${data.type}: ${JSON.stringify(data)}`, 'info');
+            }
+        }
+
+        function updateServiceStatus(services) {
+            document.getElementById('stt-status').textContent = services.stt || 'N/A';
+            document.getElementById('tts-status').textContent = services.tts || 'N/A';
+            document.getElementById('ai-status').textContent = 'Gemini 2.0 Flash';
+            document.getElementById('moderator-status').textContent = 'Active';
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                logDebug('🔌 Отключение от WebSocket...', 'info');
+                shouldReconnect = false; // Отключаем автореконнект при ручном отключении
+                
+                // КРИТИЧЕСКИ ВАЖНО: Сначала останавливаем запись
+                if (isRecording) {
+                    logDebug('🛑 Останавливаем запись перед отключением...', 'info');
+                    stopRecording();
+                }
+                
+                // Даём время MediaRecorder завершить отправку последних чанков
+                setTimeout(() => {
+                    if (ws && ws.readyState !== WebSocket.CLOSED) {
+                        logDebug('📡 Закрываем WebSocket соединение...', 'info');
+                        ws.close(1000, 'Пользователь отключился');
+                    }
+                }, 100); // 100ms задержка для завершения операций MediaRecorder
+            }
+        }
+
+        async function startRecording() {
+            try {
+                log('🎤 Запрос доступа к микрофону...', 'info');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 16000,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                log('✅ Доступ к микрофону получен', 'success');
+                
+                // Настройка визуализации
+                setupAudioVisualization(stream);
+                
+                // Настройка записи
+                const options = {
+                    mimeType: 'audio/webm;codecs=opus'
+                };
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0 && isRecording) {
+                        // Отправляем аудио чанк только если запись активна
+                        sendAudioChunk(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = function() {
+                    logDebug('⚠️ MediaRecorder остановлен!', 'warning');
+                };
+                
+                mediaRecorder.onerror = function(error) {
+                    log(`❌ Ошибка MediaRecorder: ${error}`, 'error');
+                };
+                
+                mediaRecorder.start(250); // Отправляем каждые 250мс для быстрого отклика
+                isRecording = true;
+                
+                // Сбрасываем флаги для нового диалога
+                isFirstResponse = true;
+                sessionStartTime = Date.now();
+                
+                log('🔴 Запись началась. Говорите!', 'success');
+                updateRecordingStatus(true);
+                
+                // Периодическая проверка состояния записи
+                const checkInterval = setInterval(() => {
+                    if (!isRecording) {
+                        clearInterval(checkInterval);
+                        return;
+                    }
+                    
+                    const state = mediaRecorder.state;
+                    if (state !== 'recording') {
+                        logDebug(`⚠️ MediaRecorder не записывает! Состояние: ${state}`, 'warning');
+                    }
+                    
+                    // Проверяем WebSocket
+                    if (!ws || ws.readyState !== WebSocket.OPEN) {
+                        logDebug(`⚠️ WebSocket отключен во время записи!`, 'error');
+                    }
+                }, 5000); // Проверка каждые 5 секунд
+                
+            } catch (error) {
+                log(`❌ Ошибка доступа к микрофону: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendAudioChunk(blob) {
+            // Дополнительная проверка флага записи
+            if (!isRecording) {
+                return;
+            }
+            
+            // Проверяем состояние WebSocket перед отправкой
+            if (!ws) {
+                // WebSocket не существует - останавливаем запись
+                logDebug('⚠️ WebSocket отсутствует, останавливаем запись', 'warning');
+                stopRecording();
+                return;
+            }
+            
+            // Проверяем что WebSocket в состоянии OPEN (не CLOSING или CLOSED)
+            if (ws.readyState === WebSocket.OPEN) {
+                totalChunksSent++; // Увеличиваем счетчик
+                
+                try {
+                    // Конвертируем blob в ArrayBuffer и отправляем
+                    const arrayBuffer = await blob.arrayBuffer();
+                    ws.send(arrayBuffer);
+                    
+                    // Уменьшаем спам в логах - логируем каждый 10-й чанк
+                    if (totalChunksSent % 10 === 0) {
+                        logDebug(`📤 Отправлено ${totalChunksSent} аудио чанков, последний: ${blob.size} байт`, 'info');
+                    }
+                } catch (error) {
+                    logDebug(`❌ Ошибка при отправке аудио: ${error.message}`, 'error');
+                    // Если ошибка отправки - останавливаем запись
+                    stopRecording();
+                }
+            } else if (ws.readyState === WebSocket.CONNECTING) {
+                // Ждём подключения
+                logDebug('⏳ WebSocket ещё подключается...', 'warning');
+            } else {
+                // WebSocket закрыт или закрывается (CLOSING=2 или CLOSED=3)
+                const stateNames = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
+                logDebug(`⚠️ WebSocket не готов (состояние: ${stateNames[ws.readyState]} = ${ws.readyState}), останавливаем запись`, 'warning');
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            // Проверяем что не вызываем повторно
+            if (!isRecording || !mediaRecorder) {
+                return;
+            }
+            
+            // Сразу устанавливаем флаг чтобы избежать повторных вызовов
+            isRecording = false;
+            
+            try {
+                // Проверяем состояние MediaRecorder перед остановкой
+                if (mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                
+                // Останавливаем все треки
+                if (mediaRecorder.stream) {
+                    mediaRecorder.stream.getTracks().forEach(track => {
+                        track.stop();
+                    });
+                }
+                
+                log('⏹️ Запись остановлена', 'warning');
+                updateRecordingStatus(false);
+            } catch (error) {
+                logDebug(`⚠️ Ошибка при остановке записи: ${error.message}`, 'warning');
+            }
+            
+            // Очищаем ссылку на MediaRecorder
+            mediaRecorder = null;
+            
+            // Очистка визуализации
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            // Останавливаем воспроизведение и очищаем систему
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            // Финализируем оставшиеся чанки
+            finalizeRemainingChunks();
+            
+            // Очищаем все буферы
+            isPlaying = false;
+            audioBlocks = [];
+            chunkAccumulator = [];
+            accumulatorSize = 0;
+            totalChunksReceived = 0;
+            totalChunksSent = 0;
+            totalBlocksCreated = 0;
+            isFirstResponse = true;
+            isResponseComplete = false;
+            sessionStartTime = null;
+        }
+
+        function updateRecordingStatus(recording) {
+            const indicator = document.querySelector('.status-indicator');
+            if (recording) {
+                indicator.classList.add('status-recording');
+            } else {
+                indicator.classList.remove('status-recording');
+            }
+            
+            document.getElementById('startRecordingBtn').disabled = recording || !ws;
+            document.getElementById('stopRecordingBtn').disabled = !recording;
+        }
+
+        function setupAudioVisualization(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            microphone = audioContext.createMediaStreamSource(stream);
+            
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            microphone.connect(analyser);
+            
+            const visualizer = document.getElementById('visualizer');
+            visualizer.innerHTML = '';
+            
+            // Создаем бары для визуализации
+            for (let i = 0; i < 32; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'audio-bar';
+                bar.style.left = (i * 100 / 32) + '%';
+                bar.style.width = (100 / 32 - 0.5) + '%';
+                visualizer.appendChild(bar);
+            }
+            
+            function draw() {
+                if (!isRecording) return;
+                
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+                
+                const bars = visualizer.querySelectorAll('.audio-bar');
+                for (let i = 0; i < bars.length; i++) {
+                    const height = dataArray[i * 4] / 255 * 100;
+                    bars[i].style.height = height + '%';
+                }
+            }
+            
+            draw();
+        }
+
+        function sendTestMessage() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'test',
+                    message: 'Тестовое сообщение для проверки связи',
+                    timestamp: new Date().toISOString()
+                };
+                
+                ws.send(JSON.stringify(message));
+                logDebug(`📤 Отправлено: ${JSON.stringify(message)}`, 'info');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('🗑️ Лог очищен', 'info');
+            // Сбрасываем статистику
+            logStats = { userLogs: 0, debugLogs: 0, skippedLogs: 0 };
+        }
+        
+        function showLogStats() {
+            const total = logStats.userLogs + logStats.debugLogs;
+            const skipped = currentLogLevel === LOG_LEVELS.USER ? logStats.debugLogs : 0;
+            console.log('📋 Статистика логов:', {
+                'Пользовательские': logStats.userLogs,
+                'Технические': logStats.debugLogs,
+                'Скрыто': skipped,
+                'Режим': currentLogLevel === LOG_LEVELS.USER ? 'USER' : 'DEBUG'
+            });
+        }
+        
+        // Функция для тестирования разницы между режимами
+        function testLoggingModes() {
+            console.log('🧪 Начинаем тест логирования...');
+            
+            // Сохраняем текущее состояние
+            const savedLevel = currentLogLevel;
+            const savedStats = {...logStats};
+            
+            // Тест 1: USER режим
+            currentLogLevel = LOG_LEVELS.USER;
+            logStats = { userLogs: 0, debugLogs: 0, skippedLogs: 0 };
+            
+            log('USER: Пользовательское сообщение', 'info', LOG_LEVELS.USER);
+            logDebug('USER: Техническое сообщение', 'info');
+            
+            console.log('📊 Режим USER:', {
+                'Отображено': logStats.userLogs,
+                'Скрыто': logStats.skippedLogs
+            });
+            
+            // Тест 2: DEBUG режим
+            currentLogLevel = LOG_LEVELS.DEBUG;
+            logStats = { userLogs: 0, debugLogs: 0, skippedLogs: 0 };
+            
+            log('DEBUG: Пользовательское сообщение', 'info', LOG_LEVELS.USER);
+            logDebug('DEBUG: Техническое сообщение', 'info');
+            
+            console.log('📊 Режим DEBUG:', {
+                'Отображено': logStats.userLogs + logStats.debugLogs,
+                'Скрыто': logStats.skippedLogs
+            });
+            
+            // Восстанавливаем состояние
+            currentLogLevel = savedLevel;
+            logStats = savedStats;
+            const prevLevel = currentLogLevel;
+       
+                 // Определяем новый уровень
+            let newFrontendLevel, newBackendLevel;
+            console.log('✅ Тест завершен. Проверьте консоль.');
+        }
+        
+        function toggleLogLevel() {
+            if (currentLogLevel === LOG_LEVELS.USER) {
+                newFrontendLevel = LOG_LEVELS.DEBUG;
+                newBackendLevel = "DEBUG";
+                document.getElementById('logLevelBtn').textContent = '🔍 Режим: Отладка';
+                log('🔧 Включен режим отладки - показаны все технические детали', 'warning');
+                console.log('Debug mode enabled, currentLogLevel:', newFrontendLevel, 'LOG_LEVELS.DEBUG:', LOG_LEVELS.DEBUG);
+                // Добавляем визуальный индикатор
+                document.body.classList.add('debug-mode');
+            } else {
+                newFrontendLevel = LOG_LEVELS.USER;
+                newBackendLevel = "INFO";
+                document.getElementById('logLevelBtn').textContent = '🔍 Режим: Пользователь';
+                log('👤 Включен пользовательский режим - только важные сообщения', 'info');
+                console.log('User mode enabled, currentLogLevel:', newFrontendLevel, 'LOG_LEVELS.USER:', LOG_LEVELS.USER);
+                // Убираем визуальный индикатор
+                document.body.classList.remove('debug-mode');
+            }
+            // Обновляем фронтенд уровень
+            currentLogLevel = newFrontendLevel;
+       
+            // Отправляем команду на сервер для смены бэкенд уровня
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const command = {
+                    type: "change_log_level",
+                    level: newBackendLevel
+                };
+       
+                try {
+                    ws.send(JSON.stringify(command));
+                    log(`📺 Отправлена команда смены уровня сервера на ${newBackendLevel}`, 'info');
+                } catch (error) {
+                    log(`❌ Ошибка отправки команды: ${error.message}`, 'error');
+                }
+            } else {
+                log('⚠️ Нет соединения с сервером - уровень сервера не изменён', 'warning');
+            }
+            // Показываем статистику
+            showLogStats();
+        }
+
+        // Оптимизированная система воспроизведения с объединением чанков
+        // Параметры скорректированы для быстрого отклика с сохранением плавности
+        const CHUNK_COMBINING_CONFIG = {
+            targetBlockSize: 32 * 1024,     // 32 КБ - оптимальный размер блока (2-3 чанка)
+            minChunksToStart: 2,            // 2 блока минимум для старта (быстрый отклик)
+            playbackRate: 0.95,             // Немного медленнее для лучшего восприятия
+            firstResponseMode: true         // Специальный режим для первого ответа
+        };
+
+        let audioBlocks = [];               // Готовые блоки для воспроизведения
+        let chunkAccumulator = [];          // Накопитель для мелких чанков
+        let accumulatorSize = 0;            // Текущий размер накопителя в байтах
+        let isPlaying = false;
+        let currentAudio = null;
+        
+        // Метрики производительности
+        let performanceMetrics = {
+            responseCount: 0,
+            totalResponseTime: 0,
+            audioUnderruns: 0,
+            avgBlockSize: 0,
+            totalBlocks: 0
+        };
+
+        function playAudioChunk(audioData, format = 'mp3') {
+            totalChunksReceived++;
+            
+            // Если данные пустые (сигнал завершения), не добавляем в накопитель
+            if (!audioData || audioData.length === 0) {
+                logDebug(`📍 Получен пустой чанк - сигнал завершения потока`, 'info');
+                return;
+            }
+            
+            // Конвертируем base64 в размер в байтах для подсчета
+            const estimatedSize = Math.floor(audioData.length * 0.75); // Примерный размер после декодирования
+            
+            // КРИТИЧНО: Если чанк большой (>10КБ), это уже готовый MP3 файл от TTS
+            // НЕ нужно объединять такие чанки!
+            if (estimatedSize > 10 * 1024) {
+                // Создаем блок из одного большого чанка напрямую
+                totalBlocksCreated++;
+                const block = {
+                    data: audioData, // Используем данные как есть, без объединения
+                    format: format,
+                    size: estimatedSize,
+                    chunkCount: 1,
+                    blockNumber: totalBlocksCreated
+                };
+                audioBlocks.push(block);
+                logDebug(`✅ Создан блок #${totalBlocksCreated}: 1 чанков объединены в ${Math.round(estimatedSize / 1024)} КБ`, 'success');
+            } else {
+                // Маленькие чанки накапливаем как раньше (для настоящего ElevenLabs)
+                chunkAccumulator.push({ data: audioData, format: format, size: estimatedSize });
+                accumulatorSize += estimatedSize;
+                
+                logDebug(`📦 Получен чанк #${totalChunksReceived} (~${Math.round(estimatedSize / 1024)} КБ), накоплено: ${Math.round(accumulatorSize / 1024)} КБ`, 'info');
+                
+                // Для первого ответа используем более агрессивные параметры
+                const targetSize = isFirstResponse ? 16 * 1024 : CHUNK_COMBINING_CONFIG.targetBlockSize;
+                
+                // Проверяем, достигли ли целевого размера блока
+                if (accumulatorSize >= targetSize) {
+                    createCombinedBlock();
+                }
+            }
+            
+            // КРИТИЧНО: Принудительная проверка на завершение ответа
+            // Если получили маленький последний чанк (<1000 байт), это сигнал завершения
+            if (totalChunksReceived > 10 && !isResponseComplete) {
+                const lastChunkData = chunkAccumulator[chunkAccumulator.length - 1];
+                if (lastChunkData && lastChunkData.size < 1000) {
+                    logDebug(`🚨 ПРИНУДИТЕЛЬНОЕ завершение: обнаружен маленький чанк (${lastChunkData.size} байт)`, 'warning');
+                    isResponseComplete = true;
+                    setTimeout(() => {
+                        finalizeRemainingChunks();
+                    }, 500); // Задержка для завершения воспроизведения
+                }
+            }
+            
+            // Начинаем воспроизведение если накопили достаточно блоков
+            // КРИТИЧНО: Для больших чанков MockTTS используем 1 блок для старта
+            const minBlocksToStart = isFirstResponse ? 1 : CHUNK_COMBINING_CONFIG.minChunksToStart;
+            if (!isPlaying && audioBlocks.length >= minBlocksToStart) {
+                if (isFirstResponse) {
+                    const responseTime = sessionStartTime ? Date.now() - sessionStartTime : 0;
+                    logDebug(`🚀 Быстрый старт первого ответа! Время до воспроизведения: ${responseTime}ms`, 'success');
+                    isFirstResponse = false;
+                    
+                    // Сохраняем метрику
+                    performanceMetrics.responseCount++;
+                    performanceMetrics.totalResponseTime += responseTime;
+                    
+                    // Выводим среднее время отклика каждые 5 ответов
+                    if (performanceMetrics.responseCount % 5 === 0) {
+                        const avgTime = Math.round(performanceMetrics.totalResponseTime / performanceMetrics.responseCount);
+                        log(`📊 Средняя задержка первого ответа: ${avgTime}ms (${performanceMetrics.responseCount} измерений)`, 'info');
+                    }
+                } else {
+                    logDebug(`🎵 Накоплено ${audioBlocks.length} блоков, продолжаем воспроизведение`, 'success');
+                }
+                startOptimizedPlayback();
+            }
+        }
+
+        function createCombinedBlock() {
+            if (chunkAccumulator.length === 0) return;
+            
+            totalBlocksCreated++;
+            
+            // Объединяем все накопленные чанки в один большой блок
+            let combinedBase64 = '';
+            let totalSize = 0;
+            
+            // Декодируем и объединяем все чанки
+            const audioDataArray = [];
+            for (const chunk of chunkAccumulator) {
+                const binaryString = atob(chunk.data);
+                for (let i = 0; i < binaryString.length; i++) {
+                    audioDataArray.push(binaryString.charCodeAt(i));
+                }
+                totalSize += chunk.size;
+            }
+            
+            // Конвертируем обратно в base64
+            const uint8Array = new Uint8Array(audioDataArray);
+            
+            // Используем более надежный метод для больших массивов
+            let binaryStr = '';
+            const chunkSize = 8192; // Обрабатываем по частям
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                const chunk = uint8Array.slice(i, i + chunkSize);
+                binaryStr += String.fromCharCode.apply(null, chunk);
+            }
+            
+            try {
+                combinedBase64 = btoa(binaryStr);
+            } catch (e) {
+                logDebug(`❌ Ошибка кодирования base64: ${e.message}`, 'error');
+                return;
+            }
+            
+            // Создаем объединенный блок
+            const block = {
+                data: combinedBase64,
+                format: chunkAccumulator[0].format, // Используем формат первого чанка
+                size: totalSize,
+                chunkCount: chunkAccumulator.length,
+                blockNumber: totalBlocksCreated
+            };
+            
+            audioBlocks.push(block);
+            
+            logDebug(`✅ Создан блок #${totalBlocksCreated}: ${block.chunkCount} чанков объединены в ${Math.round(totalSize / 1024)} КБ`, 'success');
+            
+            // Очищаем накопитель
+            chunkAccumulator = [];
+            accumulatorSize = 0;
+        }
+
+        async function startOptimizedPlayback() {
+            isPlaying = true;
+            
+            let waitCount = 0;
+            const maxWaitCycles = 50; // Максимум 5 секунд ожидания (50 * 100ms)
+            
+            while (isPlaying) {
+                // Если блоков нет
+                if (audioBlocks.length === 0) {
+                    // Если есть накопленные чанки и ответ еще не завершен - ждем
+                    if (chunkAccumulator.length > 0 && !isResponseComplete) {
+                        logDebug(`⏳ Ожидание накопления данных для следующего блока...`, 'info');
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        waitCount++;
+                        
+                        // КРИТИЧНО: Принудительное завершение при длительном ожидании
+                        if (waitCount >= maxWaitCycles) {
+                            logDebug(`🚨 ТАЙМАУТ ожидания! Принудительно завершаем ответ`, 'warning');
+                            isResponseComplete = true;
+                            finalizeRemainingChunks();
+                            break;
+                        }
+                        continue;
+                    }
+                    // Если ответ завершен или нет чанков - выходим
+                    else {
+                        break;
+                    }
+                }
+                
+                const block = audioBlocks.shift();
+                await playBlock(block);
+            }
+            
+            isPlaying = false;
+            log(`✅ Воспроизведение текущего ответа завершено. Блоков: ${totalBlocksCreated}`, 'info');
+            
+            // КРИТИЧНО: Полная очистка состояния для следующего ответа
+            if (isResponseComplete) {
+                // Очищаем все буферы и сбрасываем счетчики
+                audioBlocks = [];
+                chunkAccumulator = [];
+                accumulatorSize = 0;
+                totalChunksReceived = 0;
+                totalBlocksCreated = 0;
+                
+                // Сбрасываем флаги для готовности к следующему диалогу
+                isFirstResponse = true;
+                isResponseComplete = false;
+                sessionStartTime = null;
+                
+                log(`🔄 Система готова к следующему вопросу`, 'success');
+            }
+            
+            // Диагностика состояния после воспроизведения
+            logDebug(`📊 Состояние системы: recording=${isRecording}, ws=${ws ? ws.readyState : 'null'}, responseComplete=${isResponseComplete}`, 'info');
+        }
+
+        async function playBlock(block) {
+            try {
+                logDebug(`▶️ Воспроизведение блока #${block.blockNumber} (${Math.round(block.size / 1024)} КБ)`, 'info');
+                
+                // Проверка данных блока
+                if (!block.data || block.data.length === 0) {
+                    logDebug(`❌ Блок #${block.blockNumber} не содержит данных!`, 'error');
+                    return;
+                }
+                
+                // Определяем MIME тип
+                // КРИТИЧНО: MockTTS отправляет WAV, ElevenLabs - MP3
+                const mimeType = block.format === 'mp3' ? 'audio/mpeg' : 
+                                block.format === 'wav' ? 'audio/wav' :
+                                block.format === 'webm' ? 'audio/webm' : 
+                                'audio/mpeg';
+                
+                // Логируем первые символы base64 для отладки
+                logDebug(`🔍 Блок #${block.blockNumber}: format=${block.format}, mimeType=${mimeType}, dataLength=${block.data.length}, первые 50 символов: ${block.data.substring(0, 50)}...`, 'info');
+                
+                const audioBlob = base64ToBlob(block.data, mimeType);
+                logDebug(`📦 Blob создан: size=${audioBlob.size}, type=${audioBlob.type}`, 'info');
+                
+                const audioUrl = URL.createObjectURL(audioBlob);
+                currentAudio = new Audio(audioUrl);
+                
+                // Настройка скорости воспроизведения
+                currentAudio.playbackRate = CHUNK_COMBINING_CONFIG.playbackRate;
+                
+                // Ждем окончания воспроизведения
+                await new Promise((resolve, reject) => {
+                    currentAudio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        resolve();
+                    };
+                    
+                    currentAudio.onerror = (event) => {
+                        URL.revokeObjectURL(audioUrl);
+                        const errorMsg = event.target ? `${event.type} - ${event.target.error || 'Unknown error'}` : 'Audio error';
+                        log(`❌ Ошибка воспроизведения блока: ${errorMsg}`, 'error');
+                        logDebug(`❌ Debug - Block size: ${block.size}, format: ${block.format}, mimeType: ${mimeType}`, 'error');
+                        reject(event);
+                    };
+                    
+                    logDebug(`🔊 Запуск воспроизведения блока #${block.blockNumber}...`, 'info');
+                    currentAudio.play()
+                        .then(() => {
+                            logDebug(`✅ Воспроизведение блока #${block.blockNumber} началось`, 'success');
+                        })
+                        .catch(error => {
+                            log(`❌ Не удалось воспроизвести блок: ${error.message}`, 'error');
+                            reject(error);
+                        });
+                });
+                
+            } catch (error) {
+                logDebug(`❌ Ошибка обработки блока: ${error.message || error}`, 'error');
+                logDebug(`❌ Stack trace: ${error.stack}`, 'error');
+                // Продолжаем со следующим блоком
+            }
+        }
+
+        // Функция для принудительного создания блока из оставшихся чанков
+        function finalizeRemainingChunks() {
+            if (chunkAccumulator.length > 0) {
+                logDebug(`📦 Финализация: создание блока из ${chunkAccumulator.length} оставшихся чанков`, 'info');
+                createCombinedBlock();
+                
+                // Если воспроизведение не идет, запускаем для последнего блока
+                if (!isPlaying && audioBlocks.length > 0) {
+                    startOptimizedPlayback();
+                }
+            }
+        }
+
+        function base64ToBlob(base64, mimeType) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: mimeType });
+        }
+
+        // Инициализация
+        window.onload = function() {
+            log('🚀 Voice2Voice AI Test загружен', 'info');
+            log('💡 Нажмите "Подключиться" для начала', 'info');
+        };
+
+        window.onbeforeunload = function() {
+            if (ws) {
+                ws.close();
+            }
+        };
+    </script>
+</body>
+</html>

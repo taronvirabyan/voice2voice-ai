@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice2Voice Test - Simple</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+        }
+        #stopBtn {
+            background: #f44336;
+            color: white;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #ddd;
+        }
+        .log-sent { border-color: #4CAF50; }
+        .log-received { border-color: #2196F3; }
+        .log-error { border-color: #f44336; color: #f44336; }
+        .log-info { border-color: #ff9800; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Voice2Voice Test - Simple</h1>
+        <p>Нажмите "Начать" и говорите. Система должна распознать вашу речь.</p>
+        
+        <div>
+            <button id="startBtn" onclick="startRecording()">🎤 Начать запись</button>
+            <button id="stopBtn" onclick="stopRecording()" disabled>⏹️ Остановить</button>
+            <button onclick="clearLog()">🗑️ Очистить лог</button>
+        </div>
+        
+        <div id="status" style="margin: 20px 0; font-weight: bold;">
+            Статус: Готов к работе
+        </div>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingStartTime = null;
+        let chunkCount = 0;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = `Статус: ${message}`;
+        }
+        
+        async function startRecording() {
+            try {
+                log('🚀 Начинаем запись...', 'info');
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                // Подключаемся к WebSocket
+                log('📡 Подключение к WebSocket...', 'info');
+                ws = new WebSocket('ws://localhost:8000/ws');
+                
+                ws.onopen = async () => {
+                    log('✅ WebSocket подключен', 'info');
+                    updateStatus('WebSocket подключен');
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        switch(data.type) {
+                            case 'session_started':
+                                log(`📌 Сессия начата: ${data.session_id}`, 'received');
+                                startAudioRecording();
+                                break;
+                                
+                            case 'transcription':
+                                log(`📝 РАСПОЗНАНО: "${data.text}"`, 'received');
+                                updateStatus(`Распознано: ${data.text}`);
+                                break;
+                                
+                            case 'ai_response':
+                                log(`🤖 AI: ${data.text}`, 'received');
+                                break;
+                                
+                            case 'audio_chunk':
+                                if (data.is_last) {
+                                    log('🔊 Аудио ответ получен полностью', 'received');
+                                }
+                                break;
+                                
+                            case 'error':
+                                log(`❌ Ошибка: ${data.message}`, 'error');
+                                break;
+                                
+                            default:
+                                log(`← ${data.type}: ${JSON.stringify(data).substring(0, 100)}...`, 'received');
+                        }
+                    } catch (e) {
+                        log(`❌ Ошибка парсинга: ${e.message}`, 'error');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    log(`❌ WebSocket ошибка: ${error}`, 'error');
+                    updateStatus('Ошибка соединения');
+                };
+                
+                ws.onclose = () => {
+                    log('📡 WebSocket закрыт', 'info');
+                    updateStatus('Соединение закрыто');
+                    stopRecording();
+                };
+                
+            } catch (error) {
+                log(`❌ Ошибка: ${error.message}`, 'error');
+                stopRecording();
+            }
+        }
+        
+        async function startAudioRecording() {
+            try {
+                log('🎤 Запрос доступа к микрофону...', 'info');
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    } 
+                });
+                
+                log('✅ Доступ к микрофону получен', 'info');
+                updateStatus('Запись...');
+                
+                // Создаем MediaRecorder
+                const options = {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 128000
+                };
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                log(`📹 MediaRecorder создан: ${options.mimeType}`, 'info');
+                
+                chunkCount = 0;
+                recordingStartTime = Date.now();
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        chunkCount++;
+                        const elapsed = ((Date.now() - recordingStartTime) / 1000).toFixed(1);
+                        log(`→ Отправка чанка #${chunkCount} (${event.data.size} байт) [${elapsed}s]`, 'sent');
+                        
+                        // Отправляем данные через WebSocket
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(event.data);
+                        }
+                    }
+                };
+                
+                mediaRecorder.onstart = () => {
+                    log('🎙️ Запись началась', 'info');
+                };
+                
+                mediaRecorder.onstop = () => {
+                    log('🎙️ Запись остановлена', 'info');
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                // Начинаем запись с отправкой данных каждые 250мс
+                mediaRecorder.start(250);
+                log('▶️ MediaRecorder.start(250ms)', 'info');
+                
+            } catch (error) {
+                log(`❌ Ошибка записи: ${error.message}`, 'error');
+                updateStatus('Ошибка записи');
+            }
+        }
+        
+        function stopRecording() {
+            log('⏹️ Остановка записи...', 'info');
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateStatus('Готов к работе');
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('🗑️ Лог очищен', 'info');
+        }
+        
+        // Остановка при закрытии страницы
+        window.addEventListener('beforeunload', () => {
+            stopRecording();
+        });
+    </script>
+</body>
+</html>

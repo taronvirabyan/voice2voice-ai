@@ -1,0 +1,221 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+.env/
+
+# Environment Variables - КРИТИЧЕСКИ ВАЖНО!
+.env
+.env.*
+!.env.example
+*.env
+env.txt
+secrets.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.db
+logs/
+*.pid
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+.cache/
+tmp/
+temp/
+
+# Test and debug files - ВАЖНО!
+test_*.py
+check_*.py
+debug_*.py
+monitor_*.py
+verify_*.py
+fix_*.py
+emergency_*.py
+optimize_*.py
+switch_*.py
+analyze_*.py
+diagnose_*.py
+restore_*.py
+create_*.py
+update_*.py
+configure_*.py
+final_test*.py
+quick_*.py
+system_status.py
+
+# Temporary documentation - КРИТИЧНО!
+CRITICAL_*.md
+FIX_*.md
+SOLUTION_*.md
+OPTIMIZATION_*.md
+ANALYSIS_*.md
+GUIDE_*.md
+SETUP_*.md
+DEPLOYMENT_*.md
+SAFETY_*.md
+TUNNEL_*.md
+CLOUDFLARE_*.md
+RESTART_*.md
+TEMPORARY_*.md
+URGENT_*.md
+DEMO_*.md
+STATUS_*.md
+QUICKSTART_*.md
+UPDATE_*.md
+EMERGENCY_*.md
+NEW_*.md
+TODO_*.md
+NOTES_*.md
+DEBUG_*.md
+TEST_*.md
+
+# Backup files
+*.backup
+*.bak
+*backup*
+*копия*
+*.old
+*.orig
+*.save
+
+# Media files (если не нужны)
+*.wav
+*.mp3
+*.webm
+*.opus
+*.ogg
+*.m4a
+*.aac
+
+# Temporary screenshots
+screenshots/*.png
+screenshots/*.jpg
+!screenshots/README.md
+test_*.png
+debug_*.png
+temp_*.png
+
+# Redis
+dump.rdb
+*.rdb
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython
+cython_debug/
+
+# Specific project files to ignore
+websocket_handler_backup.py
+config — копия.py
+robust_gemini_service — копия.py
+gemini_voice_ai_service_patch.py
+mock_ai_service_enhanced.py
+whisper_stt_service_safe.py
+mock_torch.py
+
+# HTML test files (оставляем только основные)
+audio_test_*.html
+voice2voice_cloudflare_*.html
+voice2voice_test_backup.html
+voice2voice_optimized.html
+index_backup_*.html
+*.html.backup*
+
+# Temporary index files
+INDEX_*.txt
+!static/index.html
+
+# Keep these files
+!README.md
+!API_DOCUMENTATION.md
+!SYSTEM_DOCUMENTATION.md
+!EXAMPLES.md
+!requirements.txt
+!.env.example
+!src/
+!static/favicon.ico
+!static/index.html
+!static/robots.txt
+!static/websocket_test.html
+!static/test_voice_simple.html
+!static/screenshots/README.md
