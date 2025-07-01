@@ -339,10 +339,3 @@ python final_test_system.py
 - ElevenLabs за естественный синтез голоса
 - Сообщество открытого ПО
 
----
-
-<p align="center">
-  <strong>Voice2Voice AI v1.0.0</strong><br>
-  Создано с ❤️ для реальных бизнес-задач<br>
-  <em>Production-ready • Enterprise-grade • AI-powered</em>
-</p>
