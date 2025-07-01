@@ -320,8 +320,6 @@ python final_test_system.py
 
 ---
 
----
-
 **Voice2Voice AI v1.0.0**  
 Создано с ❤️ для реальных бизнес-задач  
 *Production-ready • Enterprise-grade • AI-powered*
